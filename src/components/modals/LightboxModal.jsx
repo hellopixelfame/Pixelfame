@@ -15,7 +15,7 @@ export default function LightboxModal({ open, onClose, claim, mine, showToast })
   return (
     <Modal open={open} onClose={onClose}>
       <div className="modal-eyebrow">{mine ? 'your square' : 'on the wall'}</div>
-      <h2>{mine ? "this one's yours 🎉" : 'someone’s square'}</h2>
+      <h2>{mine ? "this one's yours 🎉" : claim.name ? `${claim.name}'s square` : 'someone’s square'}</h2>
       <div className="coord-chip">
         X:{claim.x} Y:{claim.y} · {claim.size}×{claim.size}
       </div>

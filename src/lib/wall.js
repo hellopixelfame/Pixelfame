@@ -3,7 +3,7 @@ import { supabase, imagePublicUrl } from './supabaseClient';
 export async function fetchClaimsInBox(vx1, vy1, vx2, vy2) {
   const { data, error } = await supabase
     .from('wall_claims')
-    .select('id, x, y, size, image_path')
+    .select('id, x, y, size, image_path, name')
     .lte('x', vx2)
     .gte('x2', vx1)
     .lte('y', vy2)

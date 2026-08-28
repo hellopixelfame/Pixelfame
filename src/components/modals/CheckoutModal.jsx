@@ -108,6 +108,8 @@ export default function CheckoutModal({
   onVerifyCode,
   onResendCode,
   onChangeEmail,
+  displayName,
+  setDisplayName,
   agreedTC,
   setAgreedTC,
   onPay,
@@ -191,6 +193,15 @@ export default function CheckoutModal({
             <div className="order-price mono">{amount}</div>
           </div>
           {error && <div className="form-error">{error}</div>}
+          <label className="field-label">your name (optional, shown on the wall)</label>
+          <input
+            className="field"
+            type="text"
+            maxLength={60}
+            placeholder="e.g. Alex"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+          />
           <label className="tc-checkbox">
             <input type="checkbox" checked={agreedTC} onChange={(e) => setAgreedTC(e.target.checked)} />
             <span>

@@ -5,7 +5,7 @@ import { useWallData } from './hooks/useWallData';
 import { useToast } from './hooks/useToast';
 import { clampAnchor } from './lib/pricing';
 import { getSession, onAuthStateChange, sendEmailOtp, verifyEmailOtp, signInWithGooglePopup } from './lib/auth';
-import { createClaim, attachImage, payForClaim } from './lib/razorpay';
+import { createClaim, attachImage, setClaimName, payForClaim } from './lib/razorpay';
 import { supabase, PIXEL_IMAGES_BUCKET } from './lib/supabaseClient';
 
 import LoadingScreen from './components/LoadingScreen';
@@ -41,6 +41,7 @@ function App() {
   const [checkoutError, setCheckoutError] = useState(null);
   const [email, setEmail] = useState('');
   const [otpSentTo, setOtpSentTo] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [googleBusy, setGoogleBusy] = useState(false);
   const [agreedTC, setAgreedTC] = useState(false);
   const [activeClaimId, setActiveClaimId] = useState(null);
@@ -127,6 +128,7 @@ function App() {
     setCheckoutError(null);
     setCheckoutBusy(false);
     setEmail('');
+    setDisplayName('');
     setAgreedTC(false);
     setActiveClaimId(null);
     setModal('checkout');
@@ -199,6 +201,7 @@ function App() {
       const sess = await signInWithGooglePopup();
       setSession(sess);
       setOtpSentTo(sess.user.email);
+      setDisplayName((prev) => prev || sess.user.user_metadata?.full_name || sess.user.user_metadata?.name || '');
       setCheckoutBusy(true);
       await afterAuthenticated(sess, uploadedFile, selection);
     } catch (err) {
@@ -213,9 +216,11 @@ function App() {
     setCheckoutBusy(true);
     setCheckoutError(null);
     try {
+      const trimmedName = displayName.trim();
+      await setClaimName(activeClaimId, trimmedName);
       await payForClaim({
         claimId: activeClaimId,
-        name: '',
+        name: trimmedName,
         email: otpSentTo || session?.user?.email || '',
         brandColor: '#ff2e88',
       });
@@ -235,6 +240,7 @@ function App() {
       size: selection.size,
       img: uploadedPreviewUrl,
       email: otpSentTo || session?.user?.email || '',
+      name: displayName.trim(),
     };
     setMyClaimIds((prev) => new Set(prev).add(activeClaimId));
     setLastClaim(claimRecord);
@@ -304,6 +310,8 @@ function App() {
         onVerifyCode={handleVerifyCode}
         onResendCode={handleResendCode}
         onChangeEmail={handleChangeEmail}
+        displayName={displayName}
+        setDisplayName={setDisplayName}
         agreedTC={agreedTC}
         setAgreedTC={setAgreedTC}
         onPay={handlePay}

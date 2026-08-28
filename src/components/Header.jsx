@@ -23,6 +23,9 @@ export default function Header({ claimedCount, onInfoClick }) {
             <div className="ticker-bar-fill" style={{ width: pct + '%' }} />
           </div>
         </div>
+        <a className="info-btn" href="/PIXELFAME_Terms_and_Conditions.pdf" target="_blank" rel="noopener noreferrer">
+          terms
+        </a>
         <button className="info-btn" onClick={onInfoClick}>
           ⓘ HOW THIS WORKS
         </button>

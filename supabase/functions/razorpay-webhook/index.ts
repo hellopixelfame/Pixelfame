@@ -20,7 +20,7 @@ async function broadcastClaim(admin: ReturnType<typeof createClient>, claim: Rec
   await channel.send({
     type: 'broadcast',
     event: 'claim',
-    payload: { id: claim.id, x: claim.x, y: claim.y, size: claim.size, image_path: claim.image_path },
+    payload: { id: claim.id, x: claim.x, y: claim.y, size: claim.size, image_path: claim.image_path, name: claim.name },
   });
   await admin.removeChannel(channel);
 }

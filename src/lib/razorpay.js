@@ -37,6 +37,14 @@ export async function attachImage(claimId, imagePath) {
   if (error) throw error;
 }
 
+export async function setClaimName(claimId, name) {
+  const { error } = await supabase
+    .from('claims')
+    .update({ name: name || null })
+    .eq('id', claimId);
+  if (error) throw error;
+}
+
 export async function payForClaim({ claimId, name, email, brandColor }) {
   await loadCheckoutScript();
   const order = await invokeFunction('create-razorpay-order', { claim_id: claimId });
