@@ -5,9 +5,14 @@
 ```
 supabase login
 supabase link --project-ref <your-project-ref>
-supabase db push                       # applies migrations/0001_init.sql
-supabase functions deploy create-claim create-razorpay-order verify-razorpay-payment razorpay-webhook
+supabase db push                       # applies migrations/0001_init.sql, 0002_add_name.sql, ...
 ```
+
+Edge functions are deployed by pasting each `index.ts` into the Supabase
+Dashboard's Edge Functions editor (Dashboard → Edge Functions → create/select
+a function → paste `supabase/functions/<name>/index.ts` → Deploy). Each
+function is self-contained (CORS headers are inlined, not imported from a
+shared file) so a straight copy-paste of one file is all a deploy needs.
 
 Enable the **Google** provider under Authentication → Providers, and add
 `http://localhost:5173` (and your production origin) to Authentication →
