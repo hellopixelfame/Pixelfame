@@ -37,10 +37,23 @@ export function signInWithGooglePopup() {
       if (!popup) return reject(new Error('popup blocked — allow popups for this site and try again'));
 
       const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (session) {
-          cleanup();
-          resolve(session);
-        }
+        if (!session) return;
+        cleanup();
+        // The popup completed sign-in on its own page load and wrote the
+        // session to localStorage; this callback firing here just means
+        // this tab's client NOTICED that via cross-tab sync — it's not a
+        // guarantee the client has already applied it internally. Calling
+        // setSession explicitly forces this window's client to adopt it
+        // synchronously, so the very next request (claim insert, storage
+        // upload) is sent with the right Authorization header instead of
+        // possibly racing ahead as an unauthenticated request and getting
+        // rejected by RLS ("new row violates row-level security policy").
+        supabase.auth
+          .setSession({ access_token: session.access_token, refresh_token: session.refresh_token })
+          .then(({ data, error }) => {
+            if (error) reject(error);
+            else resolve(data.session);
+          });
       });
       const poll = setInterval(() => {
         if (popup.closed) {
