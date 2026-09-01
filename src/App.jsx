@@ -1,13 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import './styles/wall.css';
-import { useWallGrid } from './hooks/useWallGrid';
-import { useWallData } from './hooks/useWallData';
-import { useToast } from './hooks/useToast';
-import { computeSquareFromDrag } from './lib/selection';
-import { GRID_W, GRID_H } from './lib/pricing';
-import { fetchClaimAt } from './lib/wall';
-import { getSession, onAuthStateChange, sendEmailOtp, verifyEmailOtp, signInWithGooglePopup } from './lib/auth';
-import { createClaim, uploadImage, payForClaim } from './lib/razorpay';
+import { useCallback, useEffect, useRef, useState } from "react";
+import "./styles/wall.css";
+import { useWallGrid } from "./hooks/useWallGrid";
+import { useWallData } from "./hooks/useWallData";
+import { useToast } from "./hooks/useToast";
+import { computeSquareFromDrag } from "./lib/selection";
+import { GRID_W, GRID_H } from "./lib/pricing";
+import { fetchClaimAt } from "./lib/wall";
+import {
+  getSession,
+  onAuthStateChange,
+  sendEmailOtp,
+  verifyEmailOtp,
+  signInWithGooglePopup
+} from "./lib/auth";
+import { createClaim, uploadImage, payForClaim } from "./lib/razorpay";
 
 // Share links look like pixelfame.in/947-342 — read that straight off the
 // URL path so opening one drops the visitor right on that square instead
@@ -21,15 +27,16 @@ function parseDeepLinkCoord() {
   return { x, y };
 }
 
-import LoadingScreen from './components/LoadingScreen';
-import Header from './components/Header';
-import WallCanvas from './components/WallCanvas';
-import Toast from './components/Toast';
-import InfoModal from './components/modals/InfoModal';
-import UploadModal from './components/modals/UploadModal';
-import CheckoutModal from './components/modals/CheckoutModal';
-import SuccessModal from './components/modals/SuccessModal';
-import LightboxModal from './components/modals/LightboxModal';
+import LoadingScreen from "./components/LoadingScreen";
+import Header from "./components/Header";
+import WallCanvas from "./components/WallCanvas";
+import Toast from "./components/Toast";
+import InfoModal from "./components/modals/InfoModal";
+import UploadModal from "./components/modals/UploadModal";
+import CheckoutModal from "./components/modals/CheckoutModal";
+import SuccessModal from "./components/modals/SuccessModal";
+import LightboxModal from "./components/modals/LightboxModal";
+import { Analytics } from "@vercel/analytics/react";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -51,9 +58,9 @@ function App() {
   const [checkoutStep, setCheckoutStep] = useState(1);
   const [checkoutBusy, setCheckoutBusy] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
-  const [email, setEmail] = useState('');
-  const [otpSentTo, setOtpSentTo] = useState('');
-  const [displayName, setDisplayName] = useState('');
+  const [email, setEmail] = useState("");
+  const [otpSentTo, setOtpSentTo] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [googleBusy, setGoogleBusy] = useState(false);
   const [agreedTC, setAgreedTC] = useState(false);
   const [activeClaimId, setActiveClaimId] = useState(null);
@@ -74,11 +81,13 @@ function App() {
       .then((claim) => {
         deepLinkClaimRef.current = claim;
       })
-      .catch((err) => console.error('failed to load shared square', err));
+      .catch((err) => console.error("failed to load shared square", err));
   }, []);
 
   function findClaimAt(claims, gx, gy) {
-    return claims.find((c) => gx >= c.x && gx < c.x + c.size && gy >= c.y && gy < c.y + c.size);
+    return claims.find(
+      (c) => gx >= c.x && gx < c.x + c.size && gy >= c.y && gy < c.y + c.size
+    );
   }
 
   // Refs (not state) so the stable callbacks below always read fresh
@@ -86,13 +95,18 @@ function App() {
   // an effect further down, never during render.
   const dataRef = useRef({ claims: [], claimedCount: 0 });
 
-  const isCellFree = useCallback((gx, gy) => !findClaimAt(dataRef.current.claims, gx, gy), []);
+  const isCellFree = useCallback(
+    (gx, gy) => !findClaimAt(dataRef.current.claims, gx, gy),
+    []
+  );
 
   // Fires on every pointer move during a drag (and once more on release) —
   // a plain tap is just a zero-movement drag, which computeSquareFromDrag
   // naturally resolves to a 1×1 square at that cell.
   const onSelectUpdate = useCallback((anchorGx, anchorGy, gx, gy) => {
-    setPreview(computeSquareFromDrag(anchorGx, anchorGy, gx, gy, dataRef.current.claims));
+    setPreview(
+      computeSquareFromDrag(anchorGx, anchorGy, gx, gy, dataRef.current.claims)
+    );
   }, []);
 
   const onClaimedTap = useCallback(
@@ -101,7 +115,7 @@ function App() {
       if (existing) {
         setLightboxClaim(existing);
         setLightboxMine(myClaimIds.has(existing.id));
-        setModal('lightbox');
+        setModal("lightbox");
       }
     },
     [myClaimIds]
@@ -111,8 +125,9 @@ function App() {
     isCellFree,
     onSelectUpdate,
     onClaimedTap,
-    onOverviewTapDenied: () => showToast("you're already looking at the whole wall"),
-    isInputBlocked,
+    onOverviewTapDenied: () =>
+      showToast("you're already looking at the whole wall"),
+    isInputBlocked
   });
   const data = useWallData(grid);
 
@@ -128,7 +143,7 @@ function App() {
   function onConfirmPreview() {
     setSelection({ x: preview.x, y: preview.y, size: preview.size });
     setPreview(null);
-    setModal('upload');
+    setModal("upload");
   }
 
   function onCancelPreview() {
@@ -136,7 +151,7 @@ function App() {
   }
 
   function closeModal() {
-    if (modal === 'upload' || modal === 'checkout') {
+    if (modal === "upload" || modal === "checkout") {
       setPreview(null);
       setSelection(null);
       setUploadedFile(null);
@@ -151,11 +166,11 @@ function App() {
     setCheckoutStep(1);
     setCheckoutError(null);
     setCheckoutBusy(false);
-    setEmail('');
-    setDisplayName('');
+    setEmail("");
+    setDisplayName("");
     setAgreedTC(false);
     setActiveClaimId(null);
-    setModal('checkout');
+    setModal("checkout");
   }
 
   async function afterAuthenticated(file, sel) {
@@ -174,7 +189,7 @@ function App() {
       setOtpSentTo(value);
       setCheckoutStep(2);
     } catch (err) {
-      setCheckoutError(err.message || 'could not send the code — try again');
+      setCheckoutError(err.message || "could not send the code — try again");
     } finally {
       setCheckoutBusy(false);
     }
@@ -188,7 +203,9 @@ function App() {
       setSession(sess);
       await afterAuthenticated(uploadedFile, selection);
     } catch (err) {
-      setCheckoutError(err.message || "that code doesn't look right — try again");
+      setCheckoutError(
+        err.message || "that code doesn't look right — try again"
+      );
     } finally {
       setCheckoutBusy(false);
     }
@@ -199,9 +216,9 @@ function App() {
     setCheckoutError(null);
     try {
       await sendEmailOtp(otpSentTo);
-      showToast('new code sent');
+      showToast("new code sent");
     } catch (err) {
-      setCheckoutError(err.message || 'could not resend — try again');
+      setCheckoutError(err.message || "could not resend — try again");
     } finally {
       setCheckoutBusy(false);
     }
@@ -219,11 +236,17 @@ function App() {
       const sess = await signInWithGooglePopup();
       setSession(sess);
       setOtpSentTo(sess.user.email);
-      setDisplayName((prev) => prev || sess.user.user_metadata?.full_name || sess.user.user_metadata?.name || '');
+      setDisplayName(
+        (prev) =>
+          prev ||
+          sess.user.user_metadata?.full_name ||
+          sess.user.user_metadata?.name ||
+          ""
+      );
       setCheckoutBusy(true);
       await afterAuthenticated(uploadedFile, selection);
     } catch (err) {
-      setCheckoutError(err.message || 'google sign-in failed — try again');
+      setCheckoutError(err.message || "google sign-in failed — try again");
     } finally {
       setGoogleBusy(false);
       setCheckoutBusy(false);
@@ -237,12 +260,12 @@ function App() {
       await payForClaim({
         claimId: activeClaimId,
         name: displayName.trim(),
-        email: otpSentTo || session?.user?.email || '',
-        brandColor: '#ff2e88',
+        email: otpSentTo || session?.user?.email || "",
+        brandColor: "#ff2e88"
       });
       completePurchase();
     } catch (err) {
-      setCheckoutError(err.message || 'payment failed — try again');
+      setCheckoutError(err.message || "payment failed — try again");
     } finally {
       setCheckoutBusy(false);
     }
@@ -255,8 +278,8 @@ function App() {
       y: selection.y,
       size: selection.size,
       img: uploadedPreviewUrl,
-      email: otpSentTo || session?.user?.email || '',
-      name: displayName.trim(),
+      email: otpSentTo || session?.user?.email || "",
+      name: displayName.trim()
     };
     setMyClaimIds((prev) => new Set(prev).add(activeClaimId));
     setLastClaim(claimRecord);
@@ -265,19 +288,19 @@ function App() {
     setSelection(null);
     setUploadedFile(null);
     setUploadedPreviewUrl(null);
-    setModal('success');
+    setModal("success");
   }
 
   function onClaimedClick(claim) {
     setLightboxClaim(claim);
     setLightboxMine(myClaimIds.has(claim.id));
-    setModal('lightbox');
+    setModal("lightbox");
   }
 
   function handleViewOnWall() {
     setLightboxClaim(lastClaim);
     setLightboxMine(true);
-    setModal('lightbox');
+    setModal("lightbox");
   }
 
   function handleLoadingDone() {
@@ -288,11 +311,12 @@ function App() {
         grid.enterInteractive(claim.x, claim.y);
         setLightboxClaim(claim);
         setLightboxMine(myClaimIds.has(claim.id));
-        setModal('lightbox');
+        setModal("lightbox");
         return;
       }
-      if (deepLinkCoordRef.current) showToast("that square hasn't been claimed yet");
-      setModal('info');
+      if (deepLinkCoordRef.current)
+        showToast("that square hasn't been claimed yet");
+      setModal("info");
     }, 400);
   }
 
@@ -300,8 +324,11 @@ function App() {
     <>
       <LoadingScreen hidden={appReady} onDone={handleLoadingDone} />
 
-      <div id="screen-main" className={appReady ? 'show' : ''}>
-        <Header claimedCount={data.claimedCount} onInfoClick={() => setModal('info')} />
+      <div id="screen-main" className={appReady ? "show" : ""}>
+        <Header
+          claimedCount={data.claimedCount}
+          onInfoClick={() => setModal("info")}
+        />
         <WallCanvas
           grid={grid}
           claims={data.claims}
@@ -316,10 +343,15 @@ function App() {
 
       <Toast message={toast.message} visible={toast.visible} />
 
-      <InfoModal open={modal === 'info'} onClose={closeModal} />
-      <UploadModal open={modal === 'upload'} onClose={closeModal} selection={selection} onContinue={handleUploadContinue} />
+      <InfoModal open={modal === "info"} onClose={closeModal} />
+      <UploadModal
+        open={modal === "upload"}
+        onClose={closeModal}
+        selection={selection}
+        onContinue={handleUploadContinue}
+      />
       <CheckoutModal
-        open={modal === 'checkout'}
+        open={modal === "checkout"}
         onClose={closeModal}
         selection={selection}
         previewImg={uploadedPreviewUrl}
@@ -342,19 +374,20 @@ function App() {
         onPay={handlePay}
       />
       <SuccessModal
-        open={modal === 'success'}
+        open={modal === "success"}
         onClose={() => setModal(null)}
         claim={lastClaim}
         onViewOnWall={handleViewOnWall}
         showToast={showToast}
       />
       <LightboxModal
-        open={modal === 'lightbox'}
+        open={modal === "lightbox"}
         onClose={() => setModal(null)}
         claim={lightboxClaim}
         mine={lightboxMine}
         showToast={showToast}
       />
+      <Analytics />
     </>
   );
 }

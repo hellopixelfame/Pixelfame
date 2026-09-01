@@ -4,6 +4,8 @@ import { ZOOM_STEP } from '../hooks/useWallGrid';
 const GRID_LINES_BG =
   'linear-gradient(to right, var(--line) 1px, transparent 1px), linear-gradient(to bottom, var(--line) 1px, transparent 1px)';
 
+const IS_TOUCH = typeof window !== 'undefined' && (navigator.maxTouchPoints > 0 || 'ontouchstart' in window);
+
 export default function WallCanvas({
   grid,
   claims,
@@ -20,8 +22,10 @@ export default function WallCanvas({
     mode === 'overview'
       ? 'tap the wall to zoom in'
       : preview
-        ? 'confirm below, or drag elsewhere to move it'
-        : 'tap for 1 pixel · drag for a bigger square';
+        ? 'confirm below, or tap elsewhere to move it'
+        : IS_TOUCH
+          ? 'tap for 1 pixel · hold + drag for a bigger square'
+          : 'tap for 1 pixel · drag for a bigger square';
 
   return (
     <div id="viewport" ref={viewportRef}>
@@ -103,12 +107,25 @@ export default function WallCanvas({
       )}
 
       <div id="shortcuts">
-        <div>
-          <b>scroll</b> or <b>two fingers</b> to pan &nbsp;·&nbsp; <b>⌃/ctrl + scroll</b> or <b>pinch</b> to zoom
-        </div>
-        <div>
-          <b>tap</b> for 1 pixel &nbsp;·&nbsp; <b>drag</b> for a bigger square &nbsp;·&nbsp; <b>⤢</b> for the full wall
-        </div>
+        {IS_TOUCH ? (
+          <>
+            <div>
+              <b>drag</b> to pan &nbsp;·&nbsp; <b>pinch</b> to zoom
+            </div>
+            <div>
+              <b>tap</b> for 1 pixel &nbsp;·&nbsp; <b>hold + drag</b> for a bigger square &nbsp;·&nbsp; <b>⤢</b> for the full wall
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <b>scroll</b> to pan &nbsp;·&nbsp; <b>⌃/ctrl + scroll</b> to zoom
+            </div>
+            <div>
+              <b>tap</b> for 1 pixel &nbsp;·&nbsp; <b>drag</b> for a bigger square &nbsp;·&nbsp; <b>⤢</b> for the full wall
+            </div>
+          </>
+        )}
       </div>
 
       <div id="zoom-ctrl">

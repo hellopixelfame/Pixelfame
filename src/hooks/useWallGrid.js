@@ -6,6 +6,8 @@ export const MAX_CELL = 90;
 export const START_CELL = 30;
 export const ZOOM_STEP = 8;
 const OVERVIEW_GRID_STEP = 16;
+const LONG_PRESS_MS = 320;
+const PAN_CANCEL_PX = 10;
 
 function clampPanValue(px, py, cellSize, vw, vh) {
   const gw = GRID_W * cellSize;
@@ -16,12 +18,18 @@ function clampPanValue(px, py, cellSize, vw, vh) {
 }
 
 /**
- * Headless pan/zoom/select engine for the pixel wall. A single pointer
- * (mouse or one finger) drawn from a free cell grows a drag-to-select
- * square instead of panning — panning is wheel/trackpad on desktop and a
- * two-finger drag (which also pinch-zooms) on touch, so single-finger drag
- * is free for selection on mobile too. Pressing on an already-claimed cell
- * is tap-only (opens it), never a pan or a selection.
+ * Headless pan/zoom/select engine for the pixel wall.
+ *
+ * Mouse/pen: a drag from a free cell immediately grows a drag-to-select
+ * square (precise pointer, no ambiguity) — panning is the wheel/trackpad,
+ * unaffected by this.
+ *
+ * Touch: a single-finger drag defaults to panning, matching every map/
+ * canvas app — there's no wheel to fall back on, so drag can't be claimed
+ * for selection by default. Holding still on a free cell for a beat first
+ * (long-press) switches that same finger into growing a selection instead;
+ * a plain quick tap still gives 1×1 immediately, no hold required. Two
+ * fingers still pan-and-pinch-zoom together.
  */
 export function useWallGrid({ isCellFree, onSelectUpdate, onClaimedTap, onOverviewTapDenied, isInputBlocked }) {
   const viewportRef = useRef(null);
@@ -197,10 +205,15 @@ export function useWallGrid({ isCellFree, onSelectUpdate, onClaimedTap, onOvervi
     [overviewFit, enterInteractive, isBlocked]
   );
 
-  // ---- pointer-driven select-drag (mouse / touch / pen, single pointer) ----
+  // ---- pointer-driven pan / select-drag (mouse / touch / pen, single pointer) ----
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport || mode !== 'interactive') return undefined;
+
+    function beginSelecting(drag, gx, gy) {
+      drag.phase = 'selecting';
+      onSelectUpdate?.(drag.anchorGx, drag.anchorGy, gx, gy);
+    }
 
     function onPointerDown(e) {
       if (isBlocked() || !e.isPrimary) return;
@@ -212,35 +225,93 @@ export function useWallGrid({ isCellFree, onSelectUpdate, onClaimedTap, onOvervi
       const coords = gridCoordsFromClient(e.clientX, e.clientY);
       if (!coords) return;
       const free = isCellFree ? isCellFree(coords.gx, coords.gy) : true;
-      dragRef.current = {
+
+      const drag = {
         pointerId: e.pointerId,
         anchorGx: coords.gx,
         anchorGy: coords.gy,
+        startClientX: e.clientX,
+        startClientY: e.clientY,
+        startPanX: pan.x,
+        startPanY: pan.y,
         moved: false,
-        selecting: free,
+        cellFree: free,
+        phase: 'pending',
+        longPressTimer: null,
       };
+      dragRef.current = drag;
       viewport.setPointerCapture(e.pointerId);
-      if (free) onSelectUpdate?.(coords.gx, coords.gy, coords.gx, coords.gy);
+
+      if (e.pointerType === 'touch') {
+        // Ambiguous between "pan" and "grow a selection" — default to pan
+        // (see the hook doc comment above), only switching to selecting if
+        // this finger holds still on a free cell past the long-press delay.
+        if (free) {
+          drag.longPressTimer = setTimeout(() => {
+            if (dragRef.current === drag && drag.phase === 'pending') {
+              beginSelecting(drag, drag.anchorGx, drag.anchorGy);
+            }
+          }, LONG_PRESS_MS);
+        }
+      } else if (free) {
+        beginSelecting(drag, coords.gx, coords.gy);
+      } else {
+        drag.phase = 'tapOnly'; // mouse/pen on a claimed cell — wheel covers panning, no need to allow it here
+      }
     }
+
     function onPointerMove(e) {
       const drag = dragRef.current;
       if (!drag || drag.pointerId !== e.pointerId) return;
-      const coords = gridCoordsClamped(e.clientX, e.clientY);
-      if (coords.gx !== drag.anchorGx || coords.gy !== drag.anchorGy) drag.moved = true;
-      if (drag.selecting) onSelectUpdate?.(drag.anchorGx, drag.anchorGy, coords.gx, coords.gy);
+      const dx = e.clientX - drag.startClientX;
+      const dy = e.clientY - drag.startClientY;
+      if (!drag.moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) drag.moved = true;
+
+      if (drag.phase === 'pending') {
+        if (Math.abs(dx) <= PAN_CANCEL_PX && Math.abs(dy) <= PAN_CANCEL_PX) return;
+        clearTimeout(drag.longPressTimer);
+        drag.phase = 'panning';
+      }
+
+      if (drag.phase === 'panning') {
+        setPan(clampPanValue(drag.startPanX + dx, drag.startPanY + dy, cellSize, viewport.clientWidth, viewport.clientHeight));
+        return;
+      }
+
+      if (drag.phase === 'selecting') {
+        const coords = gridCoordsClamped(e.clientX, e.clientY);
+        onSelectUpdate?.(drag.anchorGx, drag.anchorGy, coords.gx, coords.gy);
+      }
     }
+
     function onPointerUp(e) {
       const drag = dragRef.current;
       if (!drag || drag.pointerId !== e.pointerId) return;
+      clearTimeout(drag.longPressTimer);
       dragRef.current = null;
-      const coords = gridCoordsClamped(e.clientX, e.clientY);
-      if (drag.selecting) {
+
+      if (drag.phase === 'selecting') {
+        const coords = gridCoordsClamped(e.clientX, e.clientY);
         onSelectUpdate?.(drag.anchorGx, drag.anchorGy, coords.gx, coords.gy);
-      } else if (!drag.moved && !isBlocked()) {
+        return;
+      }
+      if (drag.phase === 'panning' || isBlocked()) return;
+      if (drag.phase === 'tapOnly') {
+        if (!drag.moved) onClaimedTap?.(drag.anchorGx, drag.anchorGy);
+        return;
+      }
+      // touch, still 'pending': a quick tap, released before the long-press
+      // fired — resolve it as a tap (1×1 select, or open a claimed cell).
+      if (drag.cellFree) {
+        onSelectUpdate?.(drag.anchorGx, drag.anchorGy, drag.anchorGx, drag.anchorGy);
+      } else {
         onClaimedTap?.(drag.anchorGx, drag.anchorGy);
       }
     }
+
     function onPointerCancel() {
+      const drag = dragRef.current;
+      if (drag) clearTimeout(drag.longPressTimer);
       dragRef.current = null;
     }
 
@@ -254,7 +325,7 @@ export function useWallGrid({ isCellFree, onSelectUpdate, onClaimedTap, onOvervi
       viewport.removeEventListener('pointerup', onPointerUp);
       viewport.removeEventListener('pointercancel', onPointerCancel);
     };
-  }, [mode, gridCoordsFromClient, gridCoordsClamped, isCellFree, onSelectUpdate, onClaimedTap, isBlocked]);
+  }, [mode, pan, cellSize, gridCoordsFromClient, gridCoordsClamped, isCellFree, onSelectUpdate, onClaimedTap, isBlocked]);
 
   // ---- two-finger pinch zoom ----
   useEffect(() => {
