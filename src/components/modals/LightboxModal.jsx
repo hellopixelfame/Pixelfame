@@ -2,7 +2,7 @@ import Modal from './Modal';
 
 export default function LightboxModal({ open, onClose, claim, mine, showToast }) {
   if (!claim) return null;
-  const link = `pixelfame.live/${claim.x}-${claim.y}`;
+  const link = `pixelfame.in/${claim.x}-${claim.y}`;
 
   function copy() {
     if (navigator.clipboard) {
