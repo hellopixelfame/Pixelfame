@@ -5,8 +5,7 @@ import { useWallData } from './hooks/useWallData';
 import { useToast } from './hooks/useToast';
 import { computeSquareFromDrag } from './lib/selection';
 import { getSession, onAuthStateChange, sendEmailOtp, verifyEmailOtp, signInWithGooglePopup } from './lib/auth';
-import { createClaim, attachImage, setClaimName, payForClaim } from './lib/razorpay';
-import { supabase, PIXEL_IMAGES_BUCKET } from './lib/supabaseClient';
+import { createClaim, uploadImage, payForClaim } from './lib/razorpay';
 
 import LoadingScreen from './components/LoadingScreen';
 import Header from './components/Header';
@@ -132,15 +131,9 @@ function App() {
     setModal('checkout');
   }
 
-  async function afterAuthenticated(activeSession, file, sel) {
+  async function afterAuthenticated(file, sel) {
     const claim = await createClaim({ x: sel.x, y: sel.y, size: sel.size });
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const path = `${activeSession.user.id}/${claim.claim_id}.${ext}`;
-    const { error: upErr } = await supabase.storage
-      .from(PIXEL_IMAGES_BUCKET)
-      .upload(path, file, { upsert: true, contentType: file.type });
-    if (upErr) throw upErr;
-    await attachImage(claim.claim_id, path);
+    await uploadImage(claim.claim_id, file);
     setActiveClaimId(claim.claim_id);
     setCheckoutStep(3);
   }
@@ -166,7 +159,7 @@ function App() {
     try {
       const sess = await verifyEmailOtp(otpSentTo, code);
       setSession(sess);
-      await afterAuthenticated(sess, uploadedFile, selection);
+      await afterAuthenticated(uploadedFile, selection);
     } catch (err) {
       setCheckoutError(err.message || "that code doesn't look right — try again");
     } finally {
@@ -201,7 +194,7 @@ function App() {
       setOtpSentTo(sess.user.email);
       setDisplayName((prev) => prev || sess.user.user_metadata?.full_name || sess.user.user_metadata?.name || '');
       setCheckoutBusy(true);
-      await afterAuthenticated(sess, uploadedFile, selection);
+      await afterAuthenticated(uploadedFile, selection);
     } catch (err) {
       setCheckoutError(err.message || 'google sign-in failed — try again');
     } finally {
@@ -214,11 +207,9 @@ function App() {
     setCheckoutBusy(true);
     setCheckoutError(null);
     try {
-      const trimmedName = displayName.trim();
-      await setClaimName(activeClaimId, trimmedName);
       await payForClaim({
         claimId: activeClaimId,
-        name: trimmedName,
+        name: displayName.trim(),
         email: otpSentTo || session?.user?.email || '',
         brandColor: '#ff2e88',
       });

@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
     } = await userClient.auth.getUser();
     if (!user) return json({ error: 'not signed in' }, 401);
 
-    const { claim_id } = await req.json();
+    const { claim_id, name } = await req.json();
     const admin = createClient(supabaseUrl, serviceKey);
     const { data: claim, error } = await admin.from('claims').select('*').eq('id', claim_id).single();
     if (error || !claim) return json({ error: 'claim not found' }, 404);
@@ -40,6 +40,13 @@ Deno.serve(async (req) => {
       return json({ error: 'your reservation expired — pick a square again' }, 410);
     }
     if (!claim.image_path) return json({ error: 'upload an image first' }, 400);
+
+    // Set here (server-side, service role) rather than from the client —
+    // the client-side update path for this hit the same RLS unreliability
+    // as the image upload did.
+    if (typeof name === 'string') {
+      await admin.from('claims').update({ name: name.trim() || null }).eq('id', claim_id);
+    }
 
     const amount = claim.size * claim.size * 100; // paise, ₹1 per pixel
 

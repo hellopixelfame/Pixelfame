@@ -29,25 +29,16 @@ export async function createClaim({ x, y, size }) {
   return invokeFunction('create-claim', { x, y, size });
 }
 
-export async function attachImage(claimId, imagePath) {
-  const { error } = await supabase
-    .from('claims')
-    .update({ image_path: imagePath })
-    .eq('id', claimId);
-  if (error) throw error;
-}
-
-export async function setClaimName(claimId, name) {
-  const { error } = await supabase
-    .from('claims')
-    .update({ name: name || null })
-    .eq('id', claimId);
-  if (error) throw error;
+export async function uploadImage(claimId, file) {
+  const form = new FormData();
+  form.append('claim_id', claimId);
+  form.append('file', file);
+  return invokeFunction('upload-image', form);
 }
 
 export async function payForClaim({ claimId, name, email, brandColor }) {
   await loadCheckoutScript();
-  const order = await invokeFunction('create-razorpay-order', { claim_id: claimId });
+  const order = await invokeFunction('create-razorpay-order', { claim_id: claimId, name });
 
   return new Promise((resolve, reject) => {
     const rzp = new window.Razorpay({
