@@ -1,14 +1,21 @@
-import Modal from './Modal';
+import Modal from "./Modal";
 
-export default function SuccessModal({ open, onClose, claim, onViewOnWall, onCopyLink, showToast }) {
+export default function SuccessModal({
+  open,
+  onClose,
+  claim,
+  onViewOnWall,
+  onCopyLink,
+  showToast
+}) {
   if (!claim) return null;
-  const link = `pixelfame.in/${claim.x}-${claim.y}`;
+  const link = `https://pixelfame.in/${claim.x}-${claim.y}`;
 
   function copy() {
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(link).then(() => showToast('link copied!'));
+      navigator.clipboard.writeText(link).then(() => showToast("link copied!"));
     } else {
-      showToast('link copied!');
+      showToast("link copied!");
     }
     onCopyLink?.();
   }
@@ -29,14 +36,21 @@ export default function SuccessModal({ open, onClose, claim, onViewOnWall, onCop
       <div className="email-note mono">
         📧 sent your coordinates + receipt to <span>{claim.email}</span>
       </div>
-      <p>screenshot it, send it, make your friends jealous their square wasn't taken.</p>
+      <p>
+        screenshot it, send it, make your friends jealous their square wasn't
+        taken.
+      </p>
       <div className="share-link-row">
         <input type="text" readOnly value={link} />
         <button className="share-copy" onClick={copy}>
           copy
         </button>
       </div>
-      <button className="btn btn-secondary" style={{ marginTop: 12 }} onClick={onClose}>
+      <button
+        className="btn btn-secondary"
+        style={{ marginTop: 12 }}
+        onClick={onClose}
+      >
         back to the wall
       </button>
     </Modal>
