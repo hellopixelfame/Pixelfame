@@ -13,6 +13,17 @@ export async function fetchClaimsInBox(vx1, vy1, vx2, vy2) {
   return data.map((row) => ({ ...row, img: imagePublicUrl(row.image_path) }));
 }
 
+export async function fetchClaimAt(x, y) {
+  const { data, error } = await supabase
+    .from('wall_claims')
+    .select('id, x, y, size, image_path, name')
+    .eq('x', x)
+    .eq('y', y)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? { ...data, img: imagePublicUrl(data.image_path) } : null;
+}
+
 export async function fetchClaimedCount() {
   const { data, error } = await supabase
     .from('wall_stats')

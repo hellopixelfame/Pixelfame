@@ -35,7 +35,7 @@ async function sendReceiptEmail(claim: Record<string, unknown>) {
       method: 'POST',
       headers: { Authorization: `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: 'PIXELFAME <hello@pixelfame.in>',
+        from: 'Pixelfame <hello@pixelfame.in>',
         to: claim.email,
         subject: `you're on the wall — X:${claim.x} Y:${claim.y}`,
         html: `

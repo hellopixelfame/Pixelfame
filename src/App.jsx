@@ -4,8 +4,22 @@ import { useWallGrid } from './hooks/useWallGrid';
 import { useWallData } from './hooks/useWallData';
 import { useToast } from './hooks/useToast';
 import { computeSquareFromDrag } from './lib/selection';
+import { GRID_W, GRID_H } from './lib/pricing';
+import { fetchClaimAt } from './lib/wall';
 import { getSession, onAuthStateChange, sendEmailOtp, verifyEmailOtp, signInWithGooglePopup } from './lib/auth';
 import { createClaim, uploadImage, payForClaim } from './lib/razorpay';
+
+// Share links look like pixelfame.in/947-342 — read that straight off the
+// URL path so opening one drops the visitor right on that square instead
+// of the default wall view.
+function parseDeepLinkCoord() {
+  const m = window.location.pathname.match(/^\/(\d+)-(\d+)\/?$/);
+  if (!m) return null;
+  const x = parseInt(m[1], 10);
+  const y = parseInt(m[2], 10);
+  if (x < 0 || x >= GRID_W || y < 0 || y >= GRID_H) return null;
+  return { x, y };
+}
 
 import LoadingScreen from './components/LoadingScreen';
 import Header from './components/Header';
@@ -49,6 +63,19 @@ function App() {
   const [lightboxMine, setLightboxMine] = useState(false);
 
   const isInputBlocked = useCallback(() => modal !== null, [modal]);
+
+  const deepLinkCoordRef = useRef(parseDeepLinkCoord());
+  const deepLinkClaimRef = useRef(null);
+
+  useEffect(() => {
+    const coord = deepLinkCoordRef.current;
+    if (!coord) return;
+    fetchClaimAt(coord.x, coord.y)
+      .then((claim) => {
+        deepLinkClaimRef.current = claim;
+      })
+      .catch((err) => console.error('failed to load shared square', err));
+  }, []);
 
   function findClaimAt(claims, gx, gy) {
     return claims.find((c) => gx >= c.x && gx < c.x + c.size && gy >= c.y && gy < c.y + c.size);
@@ -255,7 +282,18 @@ function App() {
 
   function handleLoadingDone() {
     setAppReady(true);
-    setTimeout(() => setModal('info'), 400);
+    setTimeout(() => {
+      const claim = deepLinkClaimRef.current;
+      if (claim) {
+        grid.enterInteractive(claim.x, claim.y);
+        setLightboxClaim(claim);
+        setLightboxMine(myClaimIds.has(claim.id));
+        setModal('lightbox');
+        return;
+      }
+      if (deepLinkCoordRef.current) showToast("that square hasn't been claimed yet");
+      setModal('info');
+    }, 400);
   }
 
   return (
