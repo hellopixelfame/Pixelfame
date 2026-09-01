@@ -3,7 +3,7 @@ import './styles/wall.css';
 import { useWallGrid } from './hooks/useWallGrid';
 import { useWallData } from './hooks/useWallData';
 import { useToast } from './hooks/useToast';
-import { clampAnchor } from './lib/pricing';
+import { computeSquareFromDrag } from './lib/selection';
 import { getSession, onAuthStateChange, sendEmailOtp, verifyEmailOtp, signInWithGooglePopup } from './lib/auth';
 import { createClaim, attachImage, setClaimName, payForClaim } from './lib/razorpay';
 import { supabase, PIXEL_IMAGES_BUCKET } from './lib/supabaseClient';
@@ -28,8 +28,7 @@ function App() {
   const [session, setSession] = useState(null);
   const [myClaimIds, setMyClaimIds] = useState(() => new Set());
 
-  const [pendingSize, setPendingSize] = useState(1);
-  const [preview, setPreview] = useState(null); // {x,y} anchor, size = pendingSize
+  const [preview, setPreview] = useState(null); // {x,y,size} drag-selected, unconfirmed
   const [selection, setSelection] = useState(null); // {x,y,size} confirmed
   const [youAreHere, setYouAreHere] = useState(null);
 
@@ -56,29 +55,36 @@ function App() {
     return claims.find((c) => gx >= c.x && gx < c.x + c.size && gy >= c.y && gy < c.y + c.size);
   }
 
-  // Refs (not state) so the stable onCellTap callback below always reads
-  // fresh values without needing to be recreated on every claims/size
-  // change — populated from effects further down, never during render.
+  // Refs (not state) so the stable callbacks below always read fresh
+  // claims without needing to be recreated on every fetch — populated from
+  // an effect further down, never during render.
   const dataRef = useRef({ claims: [], claimedCount: 0 });
-  const pendingSizeRef = useRef(pendingSize);
 
-  const onCellTap = useCallback(
+  const isCellFree = useCallback((gx, gy) => !findClaimAt(dataRef.current.claims, gx, gy), []);
+
+  // Fires on every pointer move during a drag (and once more on release) —
+  // a plain tap is just a zero-movement drag, which computeSquareFromDrag
+  // naturally resolves to a 1×1 square at that cell.
+  const onSelectUpdate = useCallback((anchorGx, anchorGy, gx, gy) => {
+    setPreview(computeSquareFromDrag(anchorGx, anchorGy, gx, gy, dataRef.current.claims));
+  }, []);
+
+  const onClaimedTap = useCallback(
     (gx, gy) => {
       const existing = findClaimAt(dataRef.current.claims, gx, gy);
       if (existing) {
         setLightboxClaim(existing);
         setLightboxMine(myClaimIds.has(existing.id));
         setModal('lightbox');
-        return;
       }
-      const anchor = clampAnchor(gx, gy, pendingSizeRef.current);
-      setPreview(anchor);
     },
     [myClaimIds]
   );
 
   const grid = useWallGrid({
-    onCellTap,
+    isCellFree,
+    onSelectUpdate,
+    onClaimedTap,
     onOverviewTapDenied: () => showToast("you're already looking at the whole wall"),
     isInputBlocked,
   });
@@ -87,22 +93,14 @@ function App() {
   useEffect(() => {
     dataRef.current = data;
   }, [data]);
-  useEffect(() => {
-    pendingSizeRef.current = pendingSize;
-  }, [pendingSize]);
 
   useEffect(() => {
     getSession().then(setSession);
     return onAuthStateChange(setSession);
   }, []);
 
-  function changeSize(n) {
-    setPendingSize(n);
-    setPreview((p) => (p ? clampAnchor(p.x, p.y, n) : p));
-  }
-
   function onConfirmPreview() {
-    setSelection({ x: preview.x, y: preview.y, size: pendingSize });
+    setSelection({ x: preview.x, y: preview.y, size: preview.size });
     setPreview(null);
     setModal('upload');
   }
@@ -278,8 +276,6 @@ function App() {
         <WallCanvas
           grid={grid}
           claims={data.claims}
-          pendingSize={pendingSize}
-          onSizeChange={changeSize}
           preview={preview}
           onConfirmPreview={onConfirmPreview}
           onCancelPreview={onCancelPreview}

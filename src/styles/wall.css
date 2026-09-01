@@ -118,21 +118,6 @@ input { font: inherit; color: inherit; }
 #coord-tip .tip-price { display: block; color: #fff; font-weight: 700; font-size: 13px; white-space: nowrap; }
 #coord-tip .tip-coords { display: block; color: var(--text-dim); font-size: 10.5px; margin-top: 2px; white-space: nowrap; }
 
-/* size picker */
-#size-picker {
-  position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 61;
-  display: flex; gap: 6px; background: rgba(19, 19, 25, 0.9); border: 1px solid var(--line);
-  border-radius: 20px; padding: 5px; backdrop-filter: blur(4px);
-}
-.size-chip {
-  font-family: 'Space Mono'; font-size: 10.5px; font-weight: 700; letter-spacing: .3px;
-  padding: 7px 11px; border-radius: 16px; background: transparent; border: none; color: var(--text-dim); white-space: nowrap;
-}
-.size-chip.active { background: var(--magenta); color: #fff; }
-.size-chip input {
-  width: 32px; background: transparent; border: none; color: inherit; font: inherit; text-align: center; outline: none;
-}
-
 /* confirm bar for placed preview */
 #confirm-bar {
   position: absolute; left: 50%; transform: translateX(-50%); bottom: 84px; z-index: 62;
@@ -178,17 +163,22 @@ input { font: inherit; color: inherit; }
 }
 .modal-overlay.open { opacity: 1; visibility: visible; }
 .modal-panel {
-  width: 100%; max-height: 88%; overflow-y: auto;
+  width: 100%; max-height: 94%; overflow-y: auto;
   background: var(--bg-elev); border: 1px solid var(--line); border-bottom: none;
   border-radius: 22px 22px 0 0; padding: 12px 20px 26px; position: relative;
   transform: translateY(100%); transition: transform .3s cubic-bezier(.32, .72, 0, 1);
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent;
 }
+.modal-panel::-webkit-scrollbar { width: 7px; }
+.modal-panel::-webkit-scrollbar-track { background: transparent; }
+.modal-panel::-webkit-scrollbar-thumb { background: var(--line); border-radius: 10px; }
+.modal-panel::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
 .modal-overlay.open .modal-panel { transform: translateY(0); }
 @media (min-width: 640px) {
   .modal-overlay { align-items: center; backdrop-filter: blur(3px); }
   .modal-panel {
-    width: 440px; max-width: 90vw; max-height: 86vh; border: 1px solid var(--line);
-    border-radius: var(--radius); padding: 28px; transform: scale(.94) translateY(10px);
+    width: 500px; max-width: 92vw; max-height: 92vh; border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 30px; transform: scale(.94) translateY(10px);
     transition: transform .25s ease;
   }
   .modal-overlay.open .modal-panel { transform: scale(1) translateY(0); }

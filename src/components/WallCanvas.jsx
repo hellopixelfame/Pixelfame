@@ -1,6 +1,5 @@
 import { GRID_W, GRID_H, priceFor, formatInr } from '../lib/pricing';
 import { ZOOM_STEP } from '../hooks/useWallGrid';
-import SizePicker from './SizePicker';
 
 const GRID_LINES_BG =
   'linear-gradient(to right, var(--line) 1px, transparent 1px), linear-gradient(to bottom, var(--line) 1px, transparent 1px)';
@@ -8,8 +7,6 @@ const GRID_LINES_BG =
 export default function WallCanvas({
   grid,
   claims,
-  pendingSize,
-  onSizeChange,
   preview,
   onConfirmPreview,
   onCancelPreview,
@@ -23,8 +20,8 @@ export default function WallCanvas({
     mode === 'overview'
       ? 'tap the wall to zoom in'
       : preview
-        ? 'confirm below, or tap elsewhere to move it'
-        : `tap a square · ${formatInr(priceFor(pendingSize))} to claim`;
+        ? 'confirm below, or drag elsewhere to move it'
+        : 'tap for 1 pixel · drag for a bigger square';
 
   return (
     <div id="viewport" ref={viewportRef}>
@@ -68,8 +65,8 @@ export default function WallCanvas({
             style={{
               left: preview.x * cellSize,
               top: preview.y * cellSize,
-              width: pendingSize * cellSize,
-              height: pendingSize * cellSize,
+              width: preview.size * cellSize,
+              height: preview.size * cellSize,
             }}
           />
         )}
@@ -87,8 +84,6 @@ export default function WallCanvas({
         )}
       </div>
 
-      {mode === 'interactive' && !preview && <SizePicker size={pendingSize} onChange={onSizeChange} />}
-
       <div id="hint-pill" className="mono">
         {hint}
       </div>
@@ -96,7 +91,7 @@ export default function WallCanvas({
       {preview && (
         <div id="confirm-bar">
           <span className="cb-price mono">
-            {pendingSize}×{pendingSize} · {formatInr(priceFor(pendingSize))}
+            {preview.size}×{preview.size} · {formatInr(priceFor(preview.size))}
           </span>
           <button type="button" className="cb-cancel" onClick={onCancelPreview}>
             ✕
@@ -109,10 +104,10 @@ export default function WallCanvas({
 
       <div id="shortcuts">
         <div>
-          <b>scroll</b> to pan &nbsp;·&nbsp; <b>⌃/ctrl + scroll</b> or <b>+ / −</b> to zoom
+          <b>scroll</b> or <b>two fingers</b> to pan &nbsp;·&nbsp; <b>⌃/ctrl + scroll</b> or <b>pinch</b> to zoom
         </div>
         <div>
-          <b>tap</b> a square to claim it &nbsp;·&nbsp; <b>⤢</b> for the full wall
+          <b>tap</b> for 1 pixel &nbsp;·&nbsp; <b>drag</b> for a bigger square &nbsp;·&nbsp; <b>⤢</b> for the full wall
         </div>
       </div>
 

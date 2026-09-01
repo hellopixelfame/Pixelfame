@@ -5,7 +5,6 @@ export const INTERACTIVE_MIN = 8;
 export const MAX_CELL = 90;
 export const START_CELL = 30;
 export const ZOOM_STEP = 8;
-const DRAG_THRESHOLD = 5;
 const OVERVIEW_GRID_STEP = 16;
 
 function clampPanValue(px, py, cellSize, vw, vh) {
@@ -17,14 +16,14 @@ function clampPanValue(px, py, cellSize, vw, vh) {
 }
 
 /**
- * Headless pan/zoom/select engine for the pixel wall. Unifies the prior
- * desktop (scroll+wheel) and mobile (touch pan/pinch) prototypes into one
- * input pipeline: Pointer Events drive drag-pan for mouse/touch/pen alike,
- * raw TouchEvents pick up the second finger for pinch-zoom, wheel drives
- * trackpad pan / ctrl+scroll zoom, and overview tap-to-zoom stays a plain
- * click listener.
+ * Headless pan/zoom/select engine for the pixel wall. A single pointer
+ * (mouse or one finger) drawn from a free cell grows a drag-to-select
+ * square instead of panning — panning is wheel/trackpad on desktop and a
+ * two-finger drag (which also pinch-zooms) on touch, so single-finger drag
+ * is free for selection on mobile too. Pressing on an already-claimed cell
+ * is tap-only (opens it), never a pan or a selection.
  */
-export function useWallGrid({ onCellTap, onOverviewTapDenied, isInputBlocked }) {
+export function useWallGrid({ isCellFree, onSelectUpdate, onClaimedTap, onOverviewTapDenied, isInputBlocked }) {
   const viewportRef = useRef(null);
   const overviewCanvasRef = useRef(null);
   const contentRef = useRef(null);
@@ -130,6 +129,21 @@ export function useWallGrid({ onCellTap, onOverviewTapDenied, isInputBlocked }) 
     [pan, cellSize]
   );
 
+  // Same as gridCoordsFromClient, but clamped to the grid instead of
+  // returning null — used while a drag is in flight so dragging past the
+  // canvas edge still yields a valid (clamped) selection target.
+  const gridCoordsClamped = useCallback(
+    (clientX, clientY) => {
+      const viewport = viewportRef.current;
+      if (!viewport) return { gx: 0, gy: 0 };
+      const rect = viewport.getBoundingClientRect();
+      const gx = Math.floor((clientX - rect.left - pan.x) / cellSize);
+      const gy = Math.floor((clientY - rect.top - pan.y) / cellSize);
+      return { gx: Math.max(0, Math.min(GRID_W - 1, gx)), gy: Math.max(0, Math.min(GRID_H - 1, gy)) };
+    },
+    [pan, cellSize]
+  );
+
   const zoomBy = useCallback(
     (delta, clientX, clientY) => {
       const viewport = viewportRef.current;
@@ -183,46 +197,47 @@ export function useWallGrid({ onCellTap, onOverviewTapDenied, isInputBlocked }) 
     [overviewFit, enterInteractive, isBlocked]
   );
 
-  // ---- pointer-driven pan (mouse / touch / pen, single pointer) ----
+  // ---- pointer-driven select-drag (mouse / touch / pen, single pointer) ----
   useEffect(() => {
     const viewport = viewportRef.current;
     if (!viewport || mode !== 'interactive') return undefined;
 
     function onPointerDown(e) {
       if (isBlocked() || !e.isPrimary) return;
-      // The size-picker, confirm bar, and zoom controls are all DOM
-      // children of #viewport (so they can sit positioned over the canvas)
-      // — without this check, clicking them would bubble up here too and
-      // register as a canvas tap underneath the button.
+      // The confirm bar and zoom controls are DOM children of #viewport (so
+      // they can sit positioned over the canvas) — without this check,
+      // clicking them would bubble up here too and register as a canvas
+      // gesture underneath the button.
       if (e.target.closest('button, input, select, textarea, a')) return;
+      const coords = gridCoordsFromClient(e.clientX, e.clientY);
+      if (!coords) return;
+      const free = isCellFree ? isCellFree(coords.gx, coords.gy) : true;
       dragRef.current = {
         pointerId: e.pointerId,
-        startClientX: e.clientX,
-        startClientY: e.clientY,
-        startPanX: pan.x,
-        startPanY: pan.y,
+        anchorGx: coords.gx,
+        anchorGy: coords.gy,
         moved: false,
+        selecting: free,
       };
       viewport.setPointerCapture(e.pointerId);
+      if (free) onSelectUpdate?.(coords.gx, coords.gy, coords.gx, coords.gy);
     }
     function onPointerMove(e) {
       const drag = dragRef.current;
       if (!drag || drag.pointerId !== e.pointerId) return;
-      const dx = e.clientX - drag.startClientX;
-      const dy = e.clientY - drag.startClientY;
-      if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) drag.moved = true;
-      if (!drag.moved) return;
-      const vw = viewport.clientWidth;
-      const vh = viewport.clientHeight;
-      setPan(clampPanValue(drag.startPanX + dx, drag.startPanY + dy, cellSize, vw, vh));
+      const coords = gridCoordsClamped(e.clientX, e.clientY);
+      if (coords.gx !== drag.anchorGx || coords.gy !== drag.anchorGy) drag.moved = true;
+      if (drag.selecting) onSelectUpdate?.(drag.anchorGx, drag.anchorGy, coords.gx, coords.gy);
     }
     function onPointerUp(e) {
       const drag = dragRef.current;
       if (!drag || drag.pointerId !== e.pointerId) return;
       dragRef.current = null;
-      if (!drag.moved && !isBlocked()) {
-        const coords = gridCoordsFromClient(e.clientX, e.clientY);
-        if (coords) onCellTap?.(coords.gx, coords.gy);
+      const coords = gridCoordsClamped(e.clientX, e.clientY);
+      if (drag.selecting) {
+        onSelectUpdate?.(drag.anchorGx, drag.anchorGy, coords.gx, coords.gy);
+      } else if (!drag.moved && !isBlocked()) {
+        onClaimedTap?.(drag.anchorGx, drag.anchorGy);
       }
     }
     function onPointerCancel() {
@@ -239,7 +254,7 @@ export function useWallGrid({ onCellTap, onOverviewTapDenied, isInputBlocked }) 
       viewport.removeEventListener('pointerup', onPointerUp);
       viewport.removeEventListener('pointercancel', onPointerCancel);
     };
-  }, [mode, pan, cellSize, gridCoordsFromClient, onCellTap, isBlocked]);
+  }, [mode, gridCoordsFromClient, gridCoordsClamped, isCellFree, onSelectUpdate, onClaimedTap, isBlocked]);
 
   // ---- two-finger pinch zoom ----
   useEffect(() => {
@@ -276,8 +291,18 @@ export function useWallGrid({ onCellTap, onOverviewTapDenied, isInputBlocked }) 
       let newSize = Math.min(MAX_CELL, Math.max(INTERACTIVE_MIN, Math.round(pinch.startCell * ratio)));
       const vw = viewport.clientWidth;
       const vh = viewport.clientHeight;
-      const rawX = pinch.mid.x - pinch.gxAtMid * newSize;
-      const rawY = pinch.mid.y - pinch.gyAtMid * newSize;
+      // Re-anchor around the CURRENT midpoint (not the one at touchstart) so
+      // moving both fingers together pans the view, while the grid point
+      // under the midpoint at touchstart stays pinned as fingers spread —
+      // the combined two-finger pan+pinch gesture that stands in for the
+      // single-finger drag now spent on selection.
+      const rect = viewport.getBoundingClientRect();
+      const curMid = {
+        x: (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top,
+      };
+      const rawX = curMid.x - pinch.gxAtMid * newSize;
+      const rawY = curMid.y - pinch.gyAtMid * newSize;
       setCellSize(newSize);
       setPan(clampPanValue(rawX, rawY, newSize, vw, vh));
     }
