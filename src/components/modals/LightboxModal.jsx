@@ -1,4 +1,5 @@
 import Modal from "./Modal";
+import ShareSocialRow from "../ShareSocialRow";
 
 export default function LightboxModal({
   open,
@@ -9,6 +10,7 @@ export default function LightboxModal({
 }) {
   if (!claim) return null;
   const link = `https://pixelfame.in/${claim.x}-${claim.y}`;
+  const shareText = `I just claimed my ${claim.size}×${claim.size} spot on the PIXELFAME wall 🎉`;
 
   function copy() {
     if (navigator.clipboard) {
@@ -48,6 +50,7 @@ export default function LightboxModal({
               copy
             </button>
           </div>
+          <ShareSocialRow text={shareText} link={link} showToast={showToast} />
         </div>
       )}
     </Modal>

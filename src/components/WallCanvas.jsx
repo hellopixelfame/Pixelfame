@@ -16,7 +16,19 @@ export default function WallCanvas({
   onClaimedClick,
   showToast,
 }) {
-  const { mode, cellSize, pan, viewportRef, overviewCanvasRef, contentRef, handleOverviewClick, zoomBy, enterOverview } = grid;
+  const {
+    mode,
+    cellSize,
+    pan,
+    viewportRef,
+    overviewCanvasRef,
+    minimapCanvasRef,
+    contentRef,
+    handleOverviewClick,
+    handleMinimapClick,
+    zoomBy,
+    enterOverview,
+  } = grid;
 
   const hint =
     mode === 'overview'
@@ -34,6 +46,14 @@ export default function WallCanvas({
         ref={overviewCanvasRef}
         style={{ display: mode === 'overview' ? 'block' : 'none' }}
         onClick={handleOverviewClick}
+      />
+
+      <canvas
+        id="minimap-canvas"
+        ref={minimapCanvasRef}
+        style={{ display: mode === 'interactive' ? 'block' : 'none' }}
+        onClick={handleMinimapClick}
+        title="tap to jump around the wall"
       />
 
       <div
@@ -119,7 +139,7 @@ export default function WallCanvas({
         ) : (
           <>
             <div>
-              <b>scroll</b> to pan &nbsp;·&nbsp; <b>⌃/ctrl + scroll</b> to zoom
+              <b>scroll</b> to pan &nbsp;·&nbsp; <b>⌃/⌘ + drag</b> to pan &nbsp;·&nbsp; <b>⌃/ctrl + scroll</b> to zoom
             </div>
             <div>
               <b>tap</b> for 1 pixel &nbsp;·&nbsp; <b>drag</b> for a bigger square &nbsp;·&nbsp; <b>⤢</b> for the full wall

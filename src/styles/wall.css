@@ -89,6 +89,8 @@ input { font: inherit; color: inherit; }
 
 /* ===================== VIEWPORT / GRID ===================== */
 #viewport { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--bg); touch-action: none; }
+#viewport.pan-ready { cursor: grab; }
+#viewport.pan-active { cursor: grabbing; }
 #overview-canvas { position: absolute; top: 0; left: 0; display: block; cursor: zoom-in; }
 #canvas { position: absolute; top: 0; left: 0; background: var(--bg); display: none; }
 .cell { position: absolute; border: 1px dotted var(--line); background-size: cover; background-position: center; cursor: pointer; }
@@ -128,6 +130,13 @@ input { font: inherit; color: inherit; }
 #confirm-bar button { border-radius: 22px; border: none; font-family: 'Space Mono'; font-weight: 700; font-size: 11.5px; padding: 9px 16px; }
 #confirm-bar .cb-confirm { background: var(--magenta); color: #fff; }
 #confirm-bar .cb-cancel { background: transparent; color: var(--text-dim); border: 1px solid var(--line) !important; padding: 9px 12px !important; }
+
+#minimap-canvas {
+  position: absolute; top: 12px; right: 14px; z-index: 61;
+  border: 1px solid var(--line); border-radius: 10px; cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+#minimap-canvas:hover { border-color: var(--lime); }
 
 #zoom-ctrl {
   position: absolute; bottom: 14px; right: 14px; z-index: 60; display: flex; flex-direction: column;
@@ -272,6 +281,14 @@ input { font: inherit; color: inherit; }
 .email-note span { color: var(--lime); }
 .share-link-row { display: flex; gap: 7px; margin: 14px 0 4px; }
 .share-link-row input { flex: 1; min-width: 0; padding: 11px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-elev-2); color: var(--text-dim); font-family: 'Space Mono'; font-size: 11px; }
+
+.share-social-row { display: flex; gap: 8px; margin: 4px 0 2px; overflow-x: auto; padding-bottom: 2px; }
+.share-social-btn {
+  flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center; font-size: 18px; line-height: 1;
+  cursor: pointer; transition: transform .15s ease;
+}
+.share-social-btn:hover { transform: translateY(-2px); }
 .share-copy { padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--lime); font-family: 'Space Mono'; font-size: 10.5px; }
 
 .lightbox-img { width: 100%; aspect-ratio: 1/1; background-size: cover; background-position: center; border-radius: 12px; border: 1px solid var(--line); margin: 12px 0; }
