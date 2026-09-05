@@ -50,7 +50,16 @@ export function useWallData(grid) {
     clearTimeout(boxTimerRef.current);
     boxTimerRef.current = setTimeout(() => {
       const { vx1, vy1, vx2, vy2 } = grid.getVisibleBox();
-      fetchClaimsInBox(vx1, vy1, vx2, vy2)
+      // Fetch (and thus start loading images for) a margin beyond what's
+      // actually visible, so panning reveals cells whose images are already
+      // warm in the browser cache instead of popping in late.
+      const padX = Math.ceil((vx2 - vx1) * 0.5);
+      const padY = Math.ceil((vy2 - vy1) * 0.5);
+      const bx1 = Math.max(0, vx1 - padX);
+      const by1 = Math.max(0, vy1 - padY);
+      const bx2 = Math.min(GRID_W - 1, vx2 + padX);
+      const by2 = Math.min(GRID_H - 1, vy2 + padY);
+      fetchClaimsInBox(bx1, by1, bx2, by2)
         .then(setClaims)
         .catch((err) => console.error('failed to load claims in view', err));
     }, BOX_DEBOUNCE_MS);

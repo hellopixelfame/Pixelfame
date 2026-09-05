@@ -1,7 +1,7 @@
 const PLATFORMS = [
   { id: "whatsapp", label: "WhatsApp", glyph: "💬", bg: "#25D366" },
-  { id: "x", label: "X", glyph: "𝕏", bg: "#000000", color: "#fff" },
-  { id: "facebook", label: "Facebook", glyph: "f", bg: "#1877F2", color: "#fff" },
+  { id: "x", label: "X", glyph: "X", bg: "#000000", color: "#fff", text: true },
+  { id: "facebook", label: "Facebook", glyph: "f", bg: "#1877F2", color: "#fff", text: true },
   { id: "reddit", label: "Reddit", glyph: "👽", bg: "#FF4500" },
   { id: "instagram", label: "Instagram", glyph: "📷", bg: "linear-gradient(45deg, #f9ce34, #ee2a7b 60%, #6228d7)" },
   { id: "snapchat", label: "Snapchat", glyph: "👻", bg: "#FFFC00" },
@@ -46,7 +46,7 @@ export default function ShareSocialRow({ text, link, showToast }) {
         <button
           key={p.id}
           type="button"
-          className="share-social-btn"
+          className={`share-social-btn${p.text ? " is-text" : ""}`}
           style={{ background: p.bg, color: p.color }}
           title={`share to ${p.label}`}
           onClick={() => handleClick(p)}

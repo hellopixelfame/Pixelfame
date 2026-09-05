@@ -95,7 +95,7 @@ input { font: inherit; color: inherit; }
 #canvas { position: absolute; top: 0; left: 0; background: var(--bg); display: none; }
 .cell { position: absolute; border: 1px dotted var(--line); background-size: cover; background-position: center; cursor: pointer; }
 .cell.hover { background-color: var(--hover-fill); }
-.cell.claimed { border-style: solid; border-color: rgba(198, 255, 61, 0.5); }
+.cell.claimed { border-style: solid; border-color: rgba(198, 255, 61, 0.5); background-color: var(--bg-elev-2); }
 .cell.previewed { outline: 2px solid var(--magenta); outline-offset: -2px; z-index: 3; background-color: rgba(255, 46, 136, 0.14); }
 
 .yah-callout { position: absolute; transform: translate(-50%, -100%); display: flex; flex-direction: column; align-items: center; pointer-events: none; z-index: 8; }
@@ -289,6 +289,7 @@ input { font: inherit; color: inherit; }
   cursor: pointer; transition: transform .15s ease;
 }
 .share-social-btn:hover { transform: translateY(-2px); }
+.share-social-btn.is-text { font-family: 'Inter', sans-serif; font-weight: 800; font-size: 17px; }
 .share-copy { padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: transparent; color: var(--lime); font-family: 'Space Mono'; font-size: 10.5px; }
 
 .lightbox-img { width: 100%; aspect-ratio: 1/1; background-size: cover; background-position: center; border-radius: 12px; border: 1px solid var(--line); margin: 12px 0; }

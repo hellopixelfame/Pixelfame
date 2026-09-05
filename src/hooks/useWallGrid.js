@@ -7,6 +7,9 @@ export const START_CELL = 30;
 export const ZOOM_STEP = 8;
 const OVERVIEW_GRID_STEP = 16;
 const MINIMAP_MAX = 180;
+const MINIMAP_MOBILE_BREAKPOINT = 640; // matches the desktop breakpoint used elsewhere in wall.css
+const MINIMAP_MOBILE_W = 100;
+const MINIMAP_MOBILE_H = 140; // taller than wide on phones, unlike the grid's true wide aspect
 const LONG_PRESS_MS = 320;
 const PAN_CANCEL_PX = 10;
 
@@ -111,11 +114,22 @@ export function useWallGrid({
     if (!canvas || !viewport) return;
     const dpr = window.devicePixelRatio || 1;
     const gridAspect = GRID_W / GRID_H;
-    let mw = MINIMAP_MAX;
-    let mh = MINIMAP_MAX / gridAspect;
-    if (mh > MINIMAP_MAX) {
-      mh = MINIMAP_MAX;
-      mw = MINIMAP_MAX * gridAspect;
+    const isMobile = window.innerWidth < MINIMAP_MOBILE_BREAKPOINT;
+    let mw, mh;
+    if (isMobile) {
+      // Phones get a portrait card instead of following the wall's true
+      // wide aspect — a 180×90 sliver reads as a thin, hard-to-tap strip on
+      // a narrow screen. The thumbnail below is fit-to-box and centered, so
+      // this only changes the card's outer shape, not the wall's proportions.
+      mw = MINIMAP_MOBILE_W;
+      mh = MINIMAP_MOBILE_H;
+    } else {
+      mw = MINIMAP_MAX;
+      mh = MINIMAP_MAX / gridAspect;
+      if (mh > MINIMAP_MAX) {
+        mh = MINIMAP_MAX;
+        mw = MINIMAP_MAX * gridAspect;
+      }
     }
     canvas.style.width = mw + "px";
     canvas.style.height = mh + "px";
@@ -126,11 +140,21 @@ export function useWallGrid({
     ctx.clearRect(0, 0, mw, mh);
     ctx.fillStyle = "#101018";
     ctx.fillRect(0, 0, mw, mh);
-    const scaleX = mw / GRID_W;
-    const scaleY = mh / GRID_H;
+
+    // Fit the true-aspect wall thumbnail inside the card, centered — same
+    // background color on both, so any letterboxing on mobile is invisible.
+    const scale = Math.min(mw / GRID_W, mh / GRID_H);
+    const offsetX = (mw - GRID_W * scale) / 2;
+    const offsetY = (mh - GRID_H * scale) / 2;
+
     ctx.fillStyle = "#c6ff3d";
     overviewClaimsRef.current.forEach(({ x, y }) => {
-      ctx.fillRect(x * scaleX - 0.5, y * scaleY - 0.5, 2, 2);
+      ctx.fillRect(
+        offsetX + x * scale - 0.5,
+        offsetY + y * scale - 0.5,
+        2,
+        2
+      );
     });
     const vw = viewport.clientWidth;
     const vh = viewport.clientHeight;
@@ -141,10 +165,10 @@ export function useWallGrid({
     ctx.strokeStyle = "#ff3b3b";
     ctx.lineWidth = 3;
     ctx.strokeRect(
-      Math.round(vx1 * scaleX) + 0.5,
-      Math.round(vy1 * scaleY) + 0.5,
-      Math.max(4, (vx2 - vx1) * scaleX),
-      Math.max(4, (vy2 - vy1) * scaleY)
+      Math.round(offsetX + vx1 * scale) + 0.5,
+      Math.round(offsetY + vy1 * scale) + 0.5,
+      Math.max(4, (vx2 - vx1) * scale),
+      Math.max(4, (vy2 - vy1) * scale)
     );
   }, [pan, cellSize]);
 
@@ -155,8 +179,11 @@ export function useWallGrid({
       const viewport = viewportRef.current;
       if (!canvas || !viewport) return;
       const rect = canvas.getBoundingClientRect();
-      const gx = ((e.clientX - rect.left) / rect.width) * GRID_W;
-      const gy = ((e.clientY - rect.top) / rect.height) * GRID_H;
+      const scale = Math.min(rect.width / GRID_W, rect.height / GRID_H);
+      const offsetX = (rect.width - GRID_W * scale) / 2;
+      const offsetY = (rect.height - GRID_H * scale) / 2;
+      const gx = (e.clientX - rect.left - offsetX) / scale;
+      const gy = (e.clientY - rect.top - offsetY) / scale;
       const vw = viewport.clientWidth;
       const vh = viewport.clientHeight;
       const rawX = vw / 2 - gx * cellSize;
